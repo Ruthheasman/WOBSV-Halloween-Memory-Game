@@ -86,7 +86,7 @@ app.get("/pay", async (req, res) => {
           destination: "womenofbsv@handcash.io",
         },
       ],
-      currencyCode: "BSV",
+      currencyCode: "USD",
       denominatedIn: "USD",
       expirationType: "onPaymentCompleted",
       product: {
