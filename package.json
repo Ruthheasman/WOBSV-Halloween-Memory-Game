@@ -1,0 +1,19 @@
+{
+  "name": "halloween-snap-game",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@handcash/handcash-connect": "^0.8.8",
+    "@handcash/handcash-sdk": "^0.0.3",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "lucide": "^0.454.0"
+  }
+}

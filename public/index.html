@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>BSV Halloween Memory Game</title>
+        <link rel="stylesheet" href="styles.css" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@400;700&family=Poppins:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+        <script src="https://unpkg.com/lucide@latest"></script>
+    </head>
+    <body>
+        <!-- Add this right after your header section -->
+        <div id="music-player" class="music-player">
+            <div class="player-controls">
+                <button id="toggle-player" class="player-button">
+                    <i data-lucide="disc"></i>
+                </button>
+                <button id="next-track" class="player-button">
+                    <i data-lucide="skip-forward"></i>
+                </button>
+            </div>
+            <div id="track-info" class="track-info">
+                Now Playing: <span id="current-track">Haunted Frequencies</span>
+            </div>
+        </div>
+        <div class="header">
+            <h1>BSV Halloween Memory Game</h1>
+            <p class="instructions" align="center">
+                Play for free! Win and mint a unique Halloween NFT by logging in
+                with HandCash. Minting costs $0.25.
+            </p>
+            <div id="counter">Tries left: 10</div>
+            <button id="auth-button" class="heavy-button">
+                Log in with HandCash
+            </button>
+        </div>
+        <div id="game-board"></div>
+        <div id="overlay" class="hidden">
+            <div id="message"></div>
+            <div id="nft-minting-prompt" class="hidden">
+                <p class="instructions">
+                    Congratulations! You've won the game.<br />Log in with
+                    HandCash to mint your NFT for $0.25.
+                </p>
+                <button id="mint-nft-button" class="heavy-button">
+                    Log in with HandCash to Mint NFT
+                </button>
+                <button id="play-again-button" class="heavy-button">
+                    Play Again
+                </button>
+            </div>
+        </div>
+        <script src="script.js"></script>
+    </body>
+</html>
