@@ -83,11 +83,11 @@ app.get("/pay", async (req, res) => {
       receivers: [
         {
           sendAmount: 0.25,
-          destination: "womenofbsv@handcash.io",
+          destination: "ruth@handcash.io",
         },
       ],
-      currencyCode: "USD",
-      denominatedIn: "USD",
+      currencyCode: "BSV",
+      denominatedIn: "BSV",
       expirationType: "onPaymentCompleted",
       product: {
         name: "Halloween NFT Game Reward",
