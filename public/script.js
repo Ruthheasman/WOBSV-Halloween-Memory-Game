@@ -1,7 +1,7 @@
 import * as secp256k1 from "https://esm.sh/@noble/secp256k1@2.2.3";
 
 function generateAuthenticationKeyPair() {
-    const privateKey = secp256k1.utils.randomSecretKey();
+    const privateKey = secp256k1.utils.randomPrivateKey();
     const publicKey = secp256k1.getPublicKey(privateKey, true);
     
     return {
@@ -11,22 +11,28 @@ function generateAuthenticationKeyPair() {
 }
 
 async function startAuth() {
-    console.log("Starting auth flow...");
-    const { privateKey, publicKey } = generateAuthenticationKeyPair();
-    console.log("Generated key pair, publicKey length:", publicKey.length);
-    
-    const response = await fetch('/auth/init', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ privateKey, publicKey })
-    });
-    
-    if (response.ok) {
-        const data = await response.json();
-        window.location.href = data.redirectUrl;
-    } else {
-        console.error("Failed to initialize auth");
-        alert("Failed to connect to HandCash. Please try again.");
+    try {
+        console.log("Starting auth flow...");
+        const { privateKey, publicKey } = generateAuthenticationKeyPair();
+        console.log("Generated key pair, publicKey length:", publicKey.length);
+        
+        const response = await fetch('/auth/init', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ privateKey, publicKey })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log("Redirecting to:", data.redirectUrl);
+            window.location.href = data.redirectUrl;
+        } else {
+            console.error("Failed to initialize auth");
+            alert("Failed to connect to HandCash. Please try again.");
+        }
+    } catch (error) {
+        console.error("Auth error:", error);
+        alert("Error: " + error.message);
     }
 }
 
