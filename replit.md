@@ -4,18 +4,18 @@
 A Halloween-themed memory card matching game where users can win and mint unique Halloween NFTs by logging in with HandCash. The minting costs $0.25 USD in BSV.
 
 ## Recent Changes
-- **January 2026**: Updated HandCash authentication flow to use client-generated key pairs
-  - Keys are now generated client-side using @noble/secp256k1
-  - Private key stored in secure HTTPOnly cookie (not localStorage)
-  - Public key sent to HandCash during redirect
-  - Private key used as authToken for validation
+- **January 2026**: Updated to HandCash v3 SDK and new authentication flow
+  - Now using `@handcash/sdk@1.0.3` (official v3 SDK)
+  - Keys are generated client-side using `@noble/secp256k1@2.2.3`
+  - Private key stored in secure HTTPOnly cookie
+  - Using `Connect.getCurrentUserProfile()` for profile validation per v3 docs
 
 ## Project Architecture
 
 ### Technology Stack
 - **Backend**: Node.js with Express
 - **Frontend**: Vanilla JavaScript (ES Modules)
-- **Authentication**: HandCash Connect with client-generated key pairs
+- **Authentication**: HandCash v3 SDK with client-generated key pairs
 - **NFT Minting**: HandCash Minter SDK
 
 ### Key Files

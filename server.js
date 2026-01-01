@@ -2,17 +2,25 @@ require("dotenv").config();
 const express = require("express");
 const { HandCashConnect } = require("@handcash/handcash-connect");
 const { HandCashMinter } = require("@handcash/handcash-connect");
-const { WalletService } = require("@handcash/handcash-sdk");
 const cookieParser = require("cookie-parser");
 const path = require("path");
 const axios = require("axios");
 const app = express();
 const port = process.env.PORT || 5000;
 
-const walletService = new WalletService({
-  appId: process.env.HANDCASH_APP_ID,
-  appSecret: process.env.HANDCASH_APP_SECRET,
-});
+let handcashSdk = null;
+let Connect = null;
+
+async function initHandCashSDK() {
+  const sdk = await import("@handcash/sdk");
+  handcashSdk = sdk.getInstance({
+    appId: process.env.HANDCASH_APP_ID,
+    appSecret: process.env.HANDCASH_APP_SECRET,
+  });
+  Connect = sdk.Connect;
+}
+
+initHandCashSDK().catch(console.error);
 
 const handCashConnect = new HandCashConnect({
   appId: process.env.HANDCASH_APP_ID,
@@ -67,9 +75,14 @@ app.get("/auth/callback", async (req, res) => {
 
     console.log("Auth token from cookie, length:", authToken.length);
 
-    const walletAccount = walletService.getWalletAccountFromAuthToken(authToken);
-    const balance = await walletAccount.wallet.getTotalBalance();
-    console.log("User authenticated, balance retrieved successfully");
+    if (!handcashSdk || !Connect) {
+      console.error("HandCash SDK not initialized");
+      return res.status(500).send("Server initialization error. Please try again.");
+    }
+
+    const client = handcashSdk.getAccountClient(authToken);
+    const { data: profile } = await Connect.getCurrentUserProfile({ client });
+    console.log("Profile verified for user:", profile.publicProfile.handle);
 
     res.cookie('handcashAuthToken', authToken, {
       httpOnly: true,
