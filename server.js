@@ -52,8 +52,7 @@ app.post("/auth/init", (req, res) => {
       maxAge: 10 * 60 * 1000
     });
     
-    const redirectUrl = "https://bsv-halloween-snap-game.replit.app/auth/callback";
-    const redirectionLoginUrl = `https://handcash.io/connect?appId=${process.env.HANDCASH_APP_ID}&publicKey=${publicKey}&redirectUrl=${encodeURIComponent(redirectUrl)}`;
+    const redirectionLoginUrl = `https://handcash.io/connect?appId=${process.env.HANDCASH_APP_ID}&publicKey=${publicKey}`;
     
     console.log("Redirect URL will be:", redirectionLoginUrl);
     res.json({ redirectUrl: redirectionLoginUrl });
