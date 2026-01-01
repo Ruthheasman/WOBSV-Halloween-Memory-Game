@@ -1,8 +1,36 @@
-// Keep all your existing initialization code the same
-document.getElementById("auth-button").addEventListener("click", () => {
-    console.log("Auth button clicked");
-    window.location.href = "/auth";
-});
+import * as secp256k1 from "https://esm.sh/@noble/secp256k1@2.2.3";
+
+function generateAuthenticationKeyPair() {
+    const privateKey = secp256k1.utils.randomSecretKey();
+    const publicKey = secp256k1.getPublicKey(privateKey, true);
+    
+    return {
+        privateKey: Array.from(privateKey).map(b => b.toString(16).padStart(2, '0')).join(''),
+        publicKey: Array.from(publicKey).map(b => b.toString(16).padStart(2, '0')).join(''),
+    };
+}
+
+async function startAuth() {
+    console.log("Starting auth flow...");
+    const { privateKey, publicKey } = generateAuthenticationKeyPair();
+    console.log("Generated key pair, publicKey length:", publicKey.length);
+    
+    const response = await fetch('/auth/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ privateKey, publicKey })
+    });
+    
+    if (response.ok) {
+        const data = await response.json();
+        window.location.href = data.redirectUrl;
+    } else {
+        console.error("Failed to initialize auth");
+        alert("Failed to connect to HandCash. Please try again.");
+    }
+}
+
+document.getElementById("auth-button").addEventListener("click", startAuth);
 
 const images = [
     "assets/1ruth_thedruid.png",
@@ -96,7 +124,7 @@ function disableCards() {
     matchCount += 2;
     if (matchCount === cardArray.length) {
         setTimeout(() => {
-            if (localStorage.getItem("handcashAuthToken")) {
+            if (localStorage.getItem("handcashAuthenticated") === "true") {
                 showMintingOption();
             } else {
                 showLoginOption();
@@ -195,7 +223,7 @@ function showMintingOption() {
         .addEventListener("click", initGame);
 }
 
-function showLoginOption() {
+async function showLoginOption() {
     clearOverlay();
     overlay.classList.remove("hidden");
     message.textContent = "Congratulations! You've won!";
@@ -214,9 +242,7 @@ function showLoginOption() {
 
     document
         .getElementById("login-mint-button")
-        .addEventListener("click", () => {
-            window.location.href = "/auth";
-        });
+        .addEventListener("click", startAuth);
     document
         .getElementById("play-again-button")
         .addEventListener("click", initGame);
@@ -229,17 +255,16 @@ function clearOverlay() {
 }
 
 function mintNFT() {
-    const authToken = localStorage.getItem("handcashAuthToken");
-    if (!authToken) {
-        console.error("No auth token found");
+    const isAuthenticated = localStorage.getItem("handcashAuthenticated");
+    if (isAuthenticated !== "true") {
+        console.error("User not authenticated");
         alert("You need to log in with HandCash first.");
         return;
     }
 
     console.log("Starting NFT minting process...");
-    console.log("Auth token available (length):", authToken.length);
 
-    fetch(`/pay?authToken=${encodeURIComponent(authToken)}`)
+    fetch('/pay', { credentials: 'include' })
         .then((response) => {
             console.log("Pay endpoint response status:", response.status);
             if (!response.ok) {
@@ -271,13 +296,13 @@ function mintNFT() {
 function handleHandCashRedirect() {
     console.log("Checking for HandCash redirect...");
     const urlParams = new URLSearchParams(window.location.search);
-    const authToken = urlParams.get("authToken");
+    const authenticated = urlParams.get("authenticated");
 
-    if (authToken) {
-        console.log("Auth token received, length:", authToken.length);
-        localStorage.setItem("handcashAuthToken", authToken);
+    if (authenticated === "true") {
+        console.log("User authenticated via HandCash");
+        localStorage.setItem("handcashAuthenticated", "true");
         window.history.replaceState({}, document.title, "/");
-        updateLoginButtonState(); // Add just this line
+        updateLoginButtonState();
 
         if (matchCount === cardArray.length) {
             console.log("Game won, showing minting option");
@@ -289,11 +314,11 @@ function handleHandCashRedirect() {
 function updateLoginButtonState() {
     const authButton = document.getElementById("auth-button");
     if (authButton) {
-        const authToken = localStorage.getItem("handcashAuthToken");
-        if (authToken) {
+        const isAuthenticated = localStorage.getItem("handcashAuthenticated");
+        if (isAuthenticated === "true") {
             authButton.textContent = "Logged in";
             authButton.disabled = true;
-            authButton.style.backgroundColor = "#4CAF50"; // Optional: change color to indicate logged in state
+            authButton.style.backgroundColor = "#4CAF50";
         }
     }
 }

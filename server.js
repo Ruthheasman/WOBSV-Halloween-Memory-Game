@@ -2,18 +2,24 @@ require("dotenv").config();
 const express = require("express");
 const { HandCashConnect } = require("@handcash/handcash-connect");
 const { HandCashMinter } = require("@handcash/handcash-connect");
+const { WalletService } = require("@handcash/handcash-sdk");
+const cookieParser = require("cookie-parser");
 const path = require("path");
 const axios = require("axios");
 const app = express();
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 5000;
 
-// Initialize HandCash Connect
+const walletService = new WalletService({
+  appId: process.env.HANDCASH_APP_ID,
+  appSecret: process.env.HANDCASH_APP_SECRET,
+});
+
 const handCashConnect = new HandCashConnect({
   appId: process.env.HANDCASH_APP_ID,
   appSecret: process.env.HANDCASH_APP_SECRET,
 });
 
-// Add error handling middleware
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -22,59 +28,72 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// Authentication route
-app.get("/auth", (req, res) => {
+app.post("/auth/init", (req, res) => {
   try {
-    console.log("Auth request received");
-    const redirectUrl = `${req.protocol}://${req.get("host")}/auth/callback`;
-    console.log("Redirect URL:", redirectUrl);
-    const redirectionLoginUrl = handCashConnect.getRedirectionUrl({
-      redirectUrl,
+    console.log("Auth init received");
+    const { privateKey, publicKey } = req.body;
+    
+    if (!privateKey || !publicKey) {
+      return res.status(400).json({ error: "Missing keys" });
+    }
+    
+    res.cookie('handcashPrivateKey', privateKey, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 10 * 60 * 1000
     });
-    console.log("Redirecting to:", redirectionLoginUrl);
-    res.redirect(redirectionLoginUrl);
+    
+    const redirectUrl = "https://bsv-halloween-snap-game.replit.app/auth/callback";
+    const redirectionLoginUrl = `https://handcash.io/connect?appId=${process.env.HANDCASH_APP_ID}&publicKey=${publicKey}&redirectUrl=${encodeURIComponent(redirectUrl)}`;
+    
+    console.log("Redirect URL will be:", redirectionLoginUrl);
+    res.json({ redirectUrl: redirectionLoginUrl });
   } catch (error) {
-    console.error("Auth error:", error);
-    res.status(500).send("Authentication failed");
+    console.error("Auth init error:", error);
+    res.status(500).json({ error: "Authentication initialization failed" });
   }
 });
 
-// Auth callback
 app.get("/auth/callback", async (req, res) => {
   try {
     console.log("Auth callback received");
-    const { authToken } = req.query;
+    const authToken = req.cookies.handcashPrivateKey;
+    
     if (!authToken) {
-      console.error("No auth token in callback");
-      return res.status(400).send("Auth token missing");
+      console.error("No auth token in cookie");
+      return res.status(400).send("Auth token missing. Please try logging in again.");
     }
 
-    console.log("Auth token received, length:", authToken.length);
-    const decodedAuthToken = decodeURIComponent(authToken);
-    const account = handCashConnect.getAccountFromAuthToken(decodedAuthToken);
+    console.log("Auth token from cookie, length:", authToken.length);
 
-    // Verify the account
-    const profile = await account.profile.getCurrentProfile();
-    console.log("Profile verified for user:", profile.publicProfileId);
+    const walletAccount = walletService.getWalletAccountFromAuthToken(authToken);
+    const balance = await walletAccount.wallet.getTotalBalance();
+    console.log("User authenticated, balance retrieved successfully");
 
-    // Redirect with auth token
-    const redirectUrl = `/?authToken=${encodeURIComponent(decodedAuthToken)}`;
-    console.log("Redirecting to:", redirectUrl);
-    res.redirect(redirectUrl);
+    res.cookie('handcashAuthToken', authToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000
+    });
+
+    res.clearCookie('handcashPrivateKey');
+
+    res.redirect("/?authenticated=true");
   } catch (error) {
     console.error("Auth callback error:", error);
     res.status(500).send("Authentication failed");
   }
 });
 
-// Payment request
 app.get("/pay", async (req, res) => {
   try {
     console.log("Payment request received");
-    const { authToken } = req.query;
+    const authToken = req.cookies.handcashAuthToken;
     if (!authToken) {
-      console.error("No auth token in payment request");
-      return res.status(400).send("Auth token missing");
+      console.error("No auth token in cookie");
+      return res.status(401).json({ error: "Not authenticated" });
     }
 
     const baseUrl = `https://bsv-halloween-snap-game.replit.app`;
@@ -83,11 +102,11 @@ app.get("/pay", async (req, res) => {
       receivers: [
         {
           sendAmount: 0.25,
-          destination: "ruth@handcash.io",
+          destination: "womenofbsv@handcash.io",
         },
       ],
       currencyCode: "BSV",
-      denominatedIn: "BSV",
+      denominatedIn: "USD",
       expirationType: "onPaymentCompleted",
       product: {
         name: "Halloween NFT Game Reward",
@@ -102,7 +121,6 @@ app.get("/pay", async (req, res) => {
           webhookUrl: `${baseUrl}/payment/webhook`,
           customParameters: {
             gameId: Date.now().toString(),
-            authToken: authToken,
           },
         },
       },
