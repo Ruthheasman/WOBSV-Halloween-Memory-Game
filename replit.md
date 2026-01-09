@@ -9,6 +9,7 @@ A Halloween-themed memory card matching game where users can win and mint unique
   - Keys are generated client-side using `@noble/secp256k1@2.2.3`
   - Private key stored in secure HTTPOnly cookie
   - Using `Connect.getCurrentUserProfile()` for profile validation per v3 docs
+  - Added STATE parameter for CSRF protection per v3 security best practices
 
 ## Project Architecture
 

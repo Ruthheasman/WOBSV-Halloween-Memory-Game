@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const crypto = require("crypto");
 const { HandCashConnect } = require("@handcash/handcash-connect");
 const { HandCashMinter } = require("@handcash/handcash-connect");
 const cookieParser = require("cookie-parser");
@@ -45,6 +46,8 @@ app.post("/auth/init", (req, res) => {
       return res.status(400).json({ error: "Missing keys" });
     }
     
+    const state = crypto.randomBytes(32).toString('hex');
+    
     res.cookie('handcashPrivateKey', privateKey, {
       httpOnly: true,
       secure: true,
@@ -52,7 +55,14 @@ app.post("/auth/init", (req, res) => {
       maxAge: 10 * 60 * 1000
     });
     
-    const redirectionLoginUrl = `https://handcash.io/connect?appId=${process.env.HANDCASH_APP_ID}&publicKey=${publicKey}`;
+    res.cookie('handcashState', state, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 10 * 60 * 1000
+    });
+    
+    const redirectionLoginUrl = `https://handcash.io/connect?appId=${process.env.HANDCASH_APP_ID}&publicKey=${publicKey}&state=${state}`;
     
     console.log("Redirect URL will be:", redirectionLoginUrl);
     res.json({ redirectUrl: redirectionLoginUrl });
@@ -65,6 +75,17 @@ app.post("/auth/init", (req, res) => {
 app.get("/auth/callback", async (req, res) => {
   try {
     console.log("Auth callback received");
+    
+    const callbackState = req.query.state;
+    const sessionState = req.cookies.handcashState;
+    
+    if (!callbackState || !sessionState || callbackState !== sessionState) {
+      console.error("State mismatch - possible CSRF attack");
+      res.clearCookie('handcashState');
+      res.clearCookie('handcashPrivateKey');
+      return res.status(403).send("Invalid state parameter. Please try logging in again.");
+    }
+    
     const authToken = req.cookies.handcashPrivateKey;
     
     if (!authToken) {
@@ -91,6 +112,7 @@ app.get("/auth/callback", async (req, res) => {
     });
 
     res.clearCookie('handcashPrivateKey');
+    res.clearCookie('handcashState');
 
     res.redirect("/?authenticated=true");
   } catch (error) {
