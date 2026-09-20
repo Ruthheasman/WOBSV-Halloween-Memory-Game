@@ -36,7 +36,30 @@ async function startAuth() {
     }
 }
 
-document.getElementById("auth-button").addEventListener("click", startAuth);
+let authenticated = false;
+// Older versions kept this flag indefinitely, even after the cookie expired.
+localStorage.removeItem("handcashAuthenticated");
+document.getElementById("auth-button").addEventListener("click", async () => {
+    if (!authenticated) return startAuth();
+    try {
+        const response = await fetch("/auth/logout", { method: "POST", credentials: "include" });
+        if (!response.ok) throw new Error("Could not log out. Please try again.");
+        authenticated = false;
+        updateLoginButtonState();
+        if (document.getElementById("mint-nft-button")) showLoginOption();
+    } catch (error) {
+        alert(error.message);
+    }
+});
+
+async function checkSession() {
+    const response = await fetch("/auth/session", { credentials: "include", cache: "no-store" });
+    if (!response.ok) throw new Error("Could not verify your HandCash login. Please try again.");
+    const data = await response.json();
+    authenticated = data.authenticated === true;
+    updateLoginButtonState();
+    return authenticated;
+}
 
 const images = [
     "assets/1ruth_thedruid.png",
@@ -130,7 +153,7 @@ function disableCards() {
     matchCount += 2;
     if (matchCount === cardArray.length) {
         setTimeout(() => {
-            if (localStorage.getItem("handcashAuthenticated") === "true") {
+            if (authenticated) {
                 showMintingOption();
             } else {
                 showLoginOption();
@@ -260,11 +283,15 @@ function clearOverlay() {
     overlay.classList.add("hidden");
 }
 
-function mintNFT() {
-    const isAuthenticated = localStorage.getItem("handcashAuthenticated");
-    if (isAuthenticated !== "true") {
-        console.error("User not authenticated");
-        alert("You need to log in with HandCash first.");
+async function mintNFT() {
+    try {
+        if (!(await checkSession())) {
+            showLoginOption();
+            alert("Your login has expired. Please log in with HandCash again.");
+            return;
+        }
+    } catch (error) {
+        alert(error.message);
         return;
     }
 
@@ -273,6 +300,12 @@ function mintNFT() {
     fetch('/pay', { credentials: 'include' })
         .then((response) => {
             console.log("Pay endpoint response status:", response.status);
+            if (response.status === 401) {
+                authenticated = false;
+                updateLoginButtonState();
+                showLoginOption();
+                throw new Error("Your login has expired. Please log in with HandCash again.");
+            }
             if (!response.ok) {
                 throw new Error(
                     `Server responded with status: ${response.status}`,
@@ -295,37 +328,39 @@ function mintNFT() {
                 message: error.message,
                 stack: error.stack,
             });
-            alert("An error occurred during payment. Please try again later.");
+            alert(authenticated
+                ? "Unable to start the HandCash payment. Please try again later."
+                : error.message);
         });
 }
 
-function handleHandCashRedirect() {
+async function handleHandCashRedirect() {
     console.log("Checking for HandCash redirect...");
     const urlParams = new URLSearchParams(window.location.search);
-    const authenticated = urlParams.get("authenticated");
+    const returnedFromLogin = urlParams.get("authenticated") === "true";
 
-    if (authenticated === "true") {
-        console.log("User authenticated via HandCash");
-        localStorage.setItem("handcashAuthenticated", "true");
+    if (returnedFromLogin) {
         window.history.replaceState({}, document.title, "/");
-        updateLoginButtonState();
-
-        if (matchCount === cardArray.length) {
+    }
+    try {
+        await checkSession();
+        if (returnedFromLogin && authenticated && matchCount === cardArray.length) {
             console.log("Game won, showing minting option");
             showMintingOption();
         }
+    } catch (error) {
+        authenticated = false;
+        updateLoginButtonState();
+        alert(error.message);
     }
 }
 
 function updateLoginButtonState() {
     const authButton = document.getElementById("auth-button");
     if (authButton) {
-        const isAuthenticated = localStorage.getItem("handcashAuthenticated");
-        if (isAuthenticated === "true") {
-            authButton.textContent = "Logged in";
-            authButton.disabled = true;
-            authButton.style.backgroundColor = "#4CAF50";
-        }
+        authButton.textContent = authenticated ? "Log out of HandCash" : "Log in with HandCash";
+        authButton.disabled = false;
+        authButton.style.backgroundColor = authenticated ? "#4CAF50" : "";
     }
 }
 

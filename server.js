@@ -37,6 +37,39 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+app.get("/auth/session", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const token = req.cookies.handcashAuthToken;
+  if (!token) return res.json({ authenticated: false });
+  if (!handcashSdk || !Connect) {
+    return res.status(503).json({ error: "Login verification is temporarily unavailable." });
+  }
+  try {
+    const result = await Connect.getCurrentUserProfile({
+      client: handcashSdk.getAccountClient(token),
+    });
+    const status = result.response?.status;
+    if (status === 401 || status === 403) {
+      res.clearCookie("handcashAuthToken", { secure: true, httpOnly: true, sameSite: "lax" });
+      return res.json({ authenticated: false });
+    }
+    if (result.error || !result.data?.publicProfile) {
+      return res.status(503).json({ error: "Could not verify your HandCash login. Please try again." });
+    }
+    return res.json({ authenticated: true });
+  } catch {
+    return res.status(503).json({ error: "Could not verify your HandCash login. Please try again." });
+  }
+});
+
+app.post("/auth/logout", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  for (const name of ["handcashAuthToken", "handcashState", "handcashPrivateKey"]) {
+    res.clearCookie(name, { secure: true, httpOnly: true, sameSite: "lax" });
+  }
+  res.json({ authenticated: false });
+});
+
 app.post("/auth/init", (req, res) => {
   try {
     console.log("Auth init received");
