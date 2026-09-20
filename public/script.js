@@ -360,7 +360,6 @@ function updateLoginButtonState() {
     if (authButton) {
         authButton.textContent = authenticated ? "Log out of HandCash" : "Log in with HandCash";
         authButton.disabled = false;
-        authButton.style.backgroundColor = authenticated ? "#4CAF50" : "";
     }
 }
 

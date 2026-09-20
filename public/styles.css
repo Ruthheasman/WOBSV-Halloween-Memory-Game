@@ -99,13 +99,14 @@ body {
 
 #auth-button {
     grid-area: button;
-    background-color: rgb(67, 201, 109);
+    background-color: #00ee58;
+    color: #151515;
     white-space: nowrap;
     justify-self: end;
 }
 
 #auth-button:hover {
-    background-color: #55ff95;
+    background-color: #42ff88;
     transform: translateY(-2px);
 }
 
